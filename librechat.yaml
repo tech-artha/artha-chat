@@ -188,9 +188,7 @@ mcpSettings:
    allowedDomains:
      - 'host.docker.internal'    # Docker host access (required for Docker setups)
      - 'localhost'               # Local development
-     - '*.example.com'           # Wildcard subdomain
-     - 'https://secure.api.com'  # Protocol-restricted
-     - 'http://internal:8080'    # Protocol and port restricted
+     - 'mcp.arthatest.xyz'       # Artha MCP server
      - 'http://127.0.0.1:8000/stdio'
      - 'http://127.0.0.1:8000/sse'
      - 'http://localhost:8000/sse'
@@ -199,8 +197,8 @@ mcpSettings:
 # MCP Servers Configuration
 mcpServers:
   artha-vc-agent:
-    type: sse
-    url: http://host.docker.internal:8000/sse
+    type: streamable-http
+    url: https://mcp.arthatest.xyz/mcp
     # command: /Users/ajaytiwari/Projects/CompanyActAgent/.caagentenv/bin/python
     # args:
     #   - -m
