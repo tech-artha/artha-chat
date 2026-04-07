@@ -1,0 +1,138 @@
+name: Deploy LibreChat to EKS
+
+on:
+  push:
+    branches: [deployment/k8s]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REGISTRY: 762233754445.dkr.ecr.ap-south-1.amazonaws.com
+  ECR_REPOSITORY: artha-stg-aps1-librechat
+  EKS_CLUSTER: artha-stg-aps1-eks
+  NAMESPACE: artha-ai
+  HELM_RELEASE: artha-ai
+  HELM_CHART: helm/librechat
+
+jobs:
+  # ── Stage 1: Build & push ARM64 image ────────────────────────────────────────
+  build:
+    name: Build ARM64 Image
+    runs-on: ubuntu-24.04-arm   # native ARM64 runner — matches Graviton nodes, no QEMU
+    permissions:
+      contents: read
+      id-token: write   # required for OIDC auth with AWS
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ARM64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:cache
+          cache-to: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:cache,mode=max
+
+  # ── Stage 2: Deploy to EKS via Helm ──────────────────────────────────────────
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get EKS credentials
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ env.EKS_CLUSTER }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Ensure EKS nodes are available
+        run: |
+          NODE_GROUP=$(aws eks list-nodegroups \
+            --cluster-name ${{ env.EKS_CLUSTER }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'nodegroups[0]' --output text)
+          echo "Node group: $NODE_GROUP"
+
+          DESIRED=$(aws eks describe-nodegroup \
+            --cluster-name ${{ env.EKS_CLUSTER }} \
+            --nodegroup-name "$NODE_GROUP" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'nodegroup.scalingConfig.desiredSize' --output text)
+          echo "Current desired node count: $DESIRED"
+
+          if [ "$DESIRED" -lt "1" ]; then
+            echo "Scaling node group to 2 nodes..."
+            aws eks update-nodegroup-config \
+              --cluster-name ${{ env.EKS_CLUSTER }} \
+              --nodegroup-name "$NODE_GROUP" \
+              --region ${{ env.AWS_REGION }} \
+              --scaling-config minSize=1,maxSize=4,desiredSize=2
+            echo "Waiting up to 5 min for nodes to be Ready..."
+            kubectl wait nodes --all --for=condition=Ready --timeout=300s
+          else
+            echo "Cluster already has $DESIRED node(s) — skipping scale-up"
+            kubectl get nodes
+          fi
+
+      - name: Ensure namespace exists
+        run: |
+          kubectl get namespace ${{ env.NAMESPACE }} 2>/dev/null || \
+            kubectl create namespace ${{ env.NAMESPACE }}
+
+      - name: Reconcile ConfigMap from librechat.yaml
+        run: |
+          kubectl create configmap librechat-config-yaml \
+            --from-file=librechat.yaml=./librechat.yaml \
+            --namespace ${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "latest"
+
+      - name: Deploy via Helm
+        run: |
+          helm upgrade --install ${{ env.HELM_RELEASE }} ./${{ env.HELM_CHART }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --values k8s/helm/artha-eks-values.yaml \
+            --set image.tag=${{ github.sha }} \
+            --wait \
+            --timeout 5m
+
+      - name: Deployment summary
+        run: |
+          echo "Deployed SHA ${{ github.sha }} to ${{ env.EKS_CLUSTER }}"
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          kubectl get ingress -n ${{ env.NAMESPACE }}

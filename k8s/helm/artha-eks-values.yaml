@@ -1,0 +1,103 @@
+# Artha AI - LibreChat EKS Deployment Values
+# Cluster: artha-stg-aps1-eks (ap-south-1)
+# Architecture: ARM64 (Graviton m7g.large)
+
+image:
+  registry: 762233754445.dkr.ecr.ap-south-1.amazonaws.com
+  repository: artha-stg-aps1-librechat
+  tag: latest
+  pullPolicy: Always
+
+librechat:
+  existingSecretName: "librechat-credentials-env"
+  existingConfigYaml: "librechat-config-yaml"
+
+  configEnv:
+    HOST: "0.0.0.0"
+    PORT: "3080"
+    NODE_ENV: "production"
+    DOMAIN_CLIENT: "https://chat.arthatest.xyz"
+    DOMAIN_SERVER: "https://chat.arthatest.xyz"
+    TRUST_PROXY: "1"
+    CONSOLE_JSON: "true"
+    DISABLE_COMPRESSION: "true"
+    SEARCH: "false"
+    ALLOW_EMAIL_LOGIN: "true"
+    ALLOW_REGISTRATION: "true"
+    ALLOW_SOCIAL_LOGIN: "false"
+    ALLOW_SOCIAL_REGISTRATION: "false"
+    ALLOW_UNVERIFIED_EMAIL_LOGIN: "true"
+    APP_TITLE: "Artha AI"
+    BAN_VIOLATIONS: "true"
+    LIMIT_CONCURRENT_MESSAGES: "true"
+    CONCURRENT_MESSAGE_MAX: "2"
+
+  imageVolume:
+    enabled: false
+
+# MongoDB Atlas - no in-cluster MongoDB
+mongodb:
+  enabled: false
+
+# Disabled - re-enable after node capacity allows
+meilisearch:
+  enabled: false
+
+librechat-rag-api:
+  enabled: false
+
+service:
+  type: ClusterIP
+  port: 3080
+
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    kubernetes.io/ingress.class: "alb"
+    alb.ingress.kubernetes.io/scheme: "internet-facing"
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # ACM cert covers *.arthatest.xyz — includes chat.arthatest.xyz
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:ap-south-1:762233754445:certificate/1eb2ccd7-cc2f-4fae-98b4-fc3ac6d06bf7"
+    alb.ingress.kubernetes.io/healthcheck-path: "/health"
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
+    # 300s idle timeout preserves SSE/streaming connections
+    alb.ingress.kubernetes.io/load-balancer-attributes: "idle_timeout.timeout_seconds=300"
+  hosts:
+    - host: chat.arthatest.xyz
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []  # TLS terminated at ALB via ACM — no in-cluster cert needed
+
+# Recreate avoids stuck rolling updates when cluster has limited spare capacity
+updateStrategy:
+  type: Recreate
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3080
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  failureThreshold: 5
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 3

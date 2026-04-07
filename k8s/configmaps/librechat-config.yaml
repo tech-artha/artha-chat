@@ -1,0 +1,314 @@
+apiVersion: v1
+data:
+  librechat.yaml: "# For more information, see the Configuration Guide:\n# https://www.librechat.ai/docs/configuration/librechat_yaml\n\n#
+    Configuration version (required)\nversion: 1.2.1\n\n# Cache settings: Set to true
+    to enable caching\ncache: true\n\n# File storage configuration\n# Single strategy
+    for all file types (legacy format, still supported)\n# fileStrategy: \"s3\"\n\n#
+    Granular file storage strategies (new format - recommended)\n# Allows different
+    storage strategies for different file types\n# fileStrategy:\n#   avatar: \"s3\"
+    \       # Storage for user/agent avatar images\n#   image: \"firebase\"   # Storage
+    for uploaded images in chats\n#   document: \"local\"   # Storage for document
+    uploads (PDFs, text files, etc.)\n\n# Available strategies: \"local\", \"s3\",
+    \"firebase\"\n# If not specified, defaults to \"local\" for all file types\n#
+    You can mix and match strategies based on your needs:\n# - Use S3 for avatars
+    for fast global access\n# - Use Firebase for images with automatic optimization\n#
+    - Use local storage for documents for privacy/compliance\n\n# Custom interface
+    configuration\ninterface:\n  customWelcome: 'Welcome to Artha Group! Igniting
+    Innovation - Driving Future.'\n  # Enable/disable file search as a chatarea selection
+    (default: true)\n  # Note: This setting does not disable the Agents File Search
+    Capability.\n  # To disable the Agents Capability, see the Agents Endpoint configuration
+    instead.\n  fileSearch: true\n  # Privacy policy settings\n  privacyPolicy:\n
+    \   externalUrl: 'https://artha.group/privacy-policy'\n    openNewTab: true\n\n
+    \ # Terms of service\n  termsOfService:\n    externalUrl: 'https://artha.group/terms-of-service'\n
+    \   openNewTab: true\n    modalAcceptance: true\n    modalTitle: 'Terms of Service
+    for Artha'\n    modalContent: |\n      # Terms and Conditions for LibreChat\n\n
+    \     *Effective Date: February 18, 2024*\n\n      Welcome to Artha, the informational
+    website for the open-source AI chat platform, available at https://artha.group.
+    These Terms of Service (\"Terms\") govern your use of our website and the services
+    we offer. By accessing or using the Website, you agree to be bound by these Terms
+    and our Privacy Policy, accessible at https://artha.group//privacy.\n\n      ##
+    1. Ownership\n\n      Upon purchasing a package from Artha, you are granted the
+    right to download and use the code for accessing an admin panel for Artha. While
+    you own the downloaded code, you are expressly prohibited from reselling, redistributing,
+    or otherwise transferring the code to third parties without explicit permission
+    from Artha.\n\n      ## 2. User Data\n\n      We collect personal data, such as
+    your name, email address, and payment information, as described in our Privacy
+    Policy. This information is collected to provide and improve our services, process
+    transactions, and communicate with you.\n\n      ## 3. Non-Personal Data Collection\n\n
+    \     The Website uses cookies to enhance user experience, analyze site usage,
+    and facilitate certain functionalities. By using the Website, you consent to the
+    use of cookies in accordance with our Privacy Policy.\n\n      ## 4. Use of the
+    Website\n\n      You agree to use the Website only for lawful purposes and in
+    a manner that does not infringe the rights of, restrict, or inhibit anyone else's
+    use and enjoyment of the Website. Prohibited behavior includes harassing or causing
+    distress or inconvenience to any person, transmitting obscene or offensive content,
+    or disrupting the normal flow of dialogue within the Website.\n\n      ## 5. Governing
+    Law\n\n      These Terms shall be governed by and construed in accordance with
+    the laws of the United States, without giving effect to any principles of conflicts
+    of law.\n\n      ## 6. Changes to the Terms\n\n      We reserve the right to modify
+    these Terms at any time. We will notify users of any changes by email. Your continued
+    use of the Website after such changes have been notified will constitute your
+    consent to such changes.\n\n      ## 7. Contact Information\n\n      If you have
+    any questions about these Terms, please contact us at contact@artha.group.\n\n
+    \     By using the Website, you acknowledge that you have read these Terms of
+    Service and agree to be bound by them.\n\n  endpointsMenu: true\n  modelSelect:
+    true\n  parameters: true\n  sidePanel: true\n  presets: true\n  prompts:\n    use:
+    true\n    share: false\n    public: false\n  bookmarks: true\n  multiConvo: true\n
+    \ agents:\n    use: true\n    share: false\n    public: false\n  peoplePicker:\n
+    \   users: true\n    groups: true\n    roles: true\n  marketplace:\n    use: false\n
+    \ fileCitations: true\n  mcpServers:\n    use: true\n    share: true\n    create:
+    true\n    public: true\n\n  # Temporary chat retention period in hours (default:
+    720, min: 1, max: 8760)\n  # temporaryChatRetention: 1\n\n# Example Cloudflare
+    turnstile (optional)\n#turnstile:\n#  siteKey: \"your-site-key-here\"\n#  options:\n#
+    \   language: \"auto\"    # \"auto\" or an ISO 639-1 language code (e.g. en)\n#
+    \   size: \"normal\"      # Options: \"normal\", \"compact\", \"flexible\", or
+    \"invisible\"\n\n# Example Registration Object Structure (optional)\nregistration:\n
+    \ socialLogins: ['github', 'google', 'discord', 'openid', 'facebook', 'apple',
+    'saml']\n  # allowedDomains:\n  # - \"gmail.com\"\n\n# Example Balance settings\n#
+    balance:\n#   enabled: false\n#   startBalance: 20000\n#   autoRefillEnabled:
+    false\n#   refillIntervalValue: 30\n#   refillIntervalUnit: 'days'\n#   refillAmount:
+    10000\n\n# Example Transactions settings\n# Controls whether to save transaction
+    records to the database\n# Default is true (enabled)\n#transactions:\n#  enabled:
+    false\n# Note: If balance.enabled is true, transactions will always be enabled\n#
+    regardless of this setting to ensure balance tracking works correctly\n\n# speech:\n#
+    \  tts:\n#     openai:\n#       url: ''\n#       apiKey: '${TTS_API_KEY}'\n#       model:
+    ''\n#       voices: ['']\n\n#\n#   stt:\n#     openai:\n#       url: ''\n#       apiKey:
+    '${STT_API_KEY}'\n#       model: ''\n\n# rateLimits:\n#   fileUploads:\n#     ipMax:
+    100\n#     ipWindowInMinutes: 60  # Rate limit window for file uploads per IP\n#
+    \    userMax: 50\n#     userWindowInMinutes: 60  # Rate limit window for file
+    uploads per user\n#   conversationsImport:\n#     ipMax: 100\n#     ipWindowInMinutes:
+    60  # Rate limit window for conversation imports per IP\n#     userMax: 50\n#
+    \    userWindowInMinutes: 60  # Rate limit window for conversation imports per
+    user\n\n# Agent Actions domain restrictions (OpenAPI spec validation)\n# SECURITY:
+    If not configured, SSRF targets are blocked (localhost, private IPs, .internal/.local
+    TLDs).\n# To allow internal targets, you MUST explicitly add them to allowedDomains.\n#
+    Supports wildcards: '*.example.com' and protocol/port restrictions: 'https://api.example.com:8443'\nactions:\n
+    \ allowedDomains:\n    - 'swapi.dev'\n    - 'librechat.ai'\n    - 'google.com'\n
+    \   # - 'http://10.225.26.25:7894'  # Internal IP with protocol/port (uncomment
+    if needed)\n\n# MCP Server domain restrictions for remote transports (SSE, WebSocket,
+    HTTP)\n# SECURITY: If not configured, SSRF targets are blocked (localhost, private
+    IPs, .internal/.local TLDs).\n# To allow internal targets like host.docker.internal,
+    you MUST explicitly add them to allowedDomains.\n# Supports wildcards: '*.example.com'
+    matches 'api.example.com', 'staging.example.com', etc.\n# Supports protocol/port
+    restrictions: 'https://api.example.com:8443' restricts to specific protocol/port.\nmcpSettings:\n
+    \  allowedDomains:\n     - 'host.docker.internal'    # Docker host access (required
+    for Docker setups)\n     - 'localhost'               # Local development\n     -
+    'mcp.arthatest.xyz'       # Artha MCP server\n     - 'http://127.0.0.1:8000/stdio'\n
+    \    - 'http://127.0.0.1:8000/sse'\n     - 'http://localhost:8000/sse'\n    \n\n#
+    MCP Servers Configuration\nmcpServers:\n  artha-vc-agent:\n    type: streamable-http\n
+    \   url: https://mcp.arthatest.xyz/mcp\n    # command: /Users/ajaytiwari/Projects/CompanyActAgent/.caagentenv/bin/python\n
+    \   # args:\n    #   - -m\n    #   - src.mcp_server.server\n    #  env:\n    #
+    \   MONGODB_URI: \"${MONGO_URI}\"\n    #    MONGODB_DATABASE: LibreChat\n    #
+    \   LLM_PROVIDER: openai\n    #    OPENAI_API_KEY: '${OPENAI_API_KEY}'\n    #
+    \   EMBEDDING_PROVIDER: openai\n    #    EMBEDDING_MODEL: text-embedding-3-small\n
+    \   #    CHROMA_PERSIST_DIR: /Users/ajaytiwari/Projects/CompanyActAgent/data/chroma_db\n
+    \   timeout: 60000\n\n# Example MCP Servers Object Structure\n#  mcpServers:\n
+    \   # everything:\n    #   type: sse # type can optionally be omitted\n    #   url:
+    http://127.0.0.1:8000/sse\n#      timeout: 60000  # 1 minute timeout for this
+    server, this is the default timeout for MCP servers.\n# #   puppeteer:\n# #     type:
+    stdio\n# #     command: npx\n# #     args:\n# #       - -y\n# #       - \"@modelcontextprotocol/server-puppeteer\"\n#
+    \    timeout: 300000  # 5 minutes timeout for this server\n#   filesystem:\n#
+    \    # type: stdio\n#     command: npx\n#     args:\n#       - -y\n#       - \"@modelcontextprotocol/server-filesystem\"\n#
+    \      - /home/user/LibreChat/\n#     iconPath: /home/user/LibreChat/client/public/assets/logo.svg\n#
+    \  mcp-obsidian:\n#     command: npx\n#     args:\n#       - -y\n#       - \"mcp-obsidian\"\n#
+    \      - /path/to/obsidian/vault\n\n# Definition of custom endpoints\nendpoints:\n
+    \ # assistants:\n  #   disableBuilder: false # Disable Assistants Builder Interface
+    by setting to `true`\n  #   pollIntervalMs: 3000  # Polling interval for checking
+    assistant updates\n  #   timeoutMs: 180000  # Timeout for assistant operations\n
+    \ #   # Should only be one or the other, either `supportedIds` or `excludedIds`\n
+    \ #   supportedIds: [\"asst_supportedAssistantId1\", \"asst_supportedAssistantId2\"]\n
+    \ #   # excludedIds: [\"asst_excludedAssistantId\"]\n  #   # Only show assistants
+    that the user created or that were created externally (e.g. in Assistants playground).\n
+    \ #   # privateAssistants: false # Does not work with `supportedIds` or `excludedIds`\n
+    \ #   # (optional) Models that support retrieval, will default to latest known
+    OpenAI models that support the feature\n  #   retrievalModels: [\"gpt-4-turbo-preview\"]\n
+    \ #   # (optional) Assistant Capabilities available to all users. Omit the ones
+    you wish to exclude. Defaults to list below.\n  #   capabilities: [\"code_interpreter\",
+    \"retrieval\", \"actions\", \"tools\", \"image_vision\"]\n  # agents:\n  #   #
+    (optional) Default recursion depth for agents, defaults to 25\n  #   recursionLimit:
+    50\n  #   # (optional) Max recursion depth for agents, defaults to 25\n  #   maxRecursionLimit:
+    100\n  #   # (optional) Disable the builder interface for agents\n  #   disableBuilder:
+    false\n  #   # (optional) Maximum total citations to include in agent responses,
+    defaults to 30\n  #   maxCitations: 30\n  #   # (optional) Maximum citations per
+    file to include in agent responses, defaults to 7\n  #   maxCitationsPerFile:
+    7\n  #   # (optional) Minimum relevance score for sources to be included in responses,
+    defaults to 0.45 (45% relevance threshold)\n  #   # Set to 0.0 to show all sources
+    (no filtering), or higher like 0.7 for stricter filtering\n  #   minRelevanceScore:
+    0.45\n  #   # (optional) Agent Capabilities available to all users. Omit the ones
+    you wish to exclude. Defaults to list below.\n  #   capabilities: [\"execute_code\",
+    \"file_search\", \"actions\", \"tools\"]\n\n  # Anthropic endpoint configuration
+    with Vertex AI support\n  # Use this to run Anthropic Claude models through Google
+    Cloud Vertex AI\n  # anthropic:\n  #   # (optional) Stream rate limiting in milliseconds\n
+    \ #   streamRate: 20\n  #   # (optional) Title model for conversation titles\n
+    \ #   titleModel: claude-3.5-haiku  # Use the visible model name (key from models
+    config)\n  #\n  #   # Vertex AI Configuration - enables running Claude models
+    via Google Cloud\n  #   # This is similar to Azure OpenAI but for Anthropic models
+    on Google Cloud\n  #   # Vertex AI is automatically enabled when this config section
+    is present\n  #   vertex:\n  #     # Vertex AI region (optional, defaults to 'us-east5')\n
+    \ #     # Available regions: us-east5, us-central1, europe-west1, europe-west4,
+    asia-southeast1\n  #     region: \"us-east5\"\n  #     # Path to Google service
+    account key file (optional)\n  #     # If not specified, uses GOOGLE_SERVICE_KEY_FILE
+    env var or default path (api/data/auth.json)\n  #     # The project_id is automatically
+    extracted from the service key file\n  #     # serviceKeyFile: \"/path/to/service-account.json\"\n
+    \ #     # Google Cloud Project ID (optional) - auto-detected from service key
+    file\n  #     # Only specify if you need to override the project_id in your service
+    key\n  #     # projectId: \"${VERTEX_PROJECT_ID}\"\n  #\n  #     # ============================================================================\n
+    \ #     # Model Configuration - Set Visible Model Names and Deployment Mappings\n
+    \ #     # Similar to Azure OpenAI model naming pattern\n  #     # ============================================================================\n
+    \ #\n  #     # Option 1: Simple array (legacy format - model name = deployment
+    name)\n  #     # Use this if you want the technical model IDs to show in the UI\n
+    \ #     # models:\n  #     #   - \"claude-sonnet-4-20250514\"\n  #     #   - \"claude-3-7-sonnet-20250219\"\n
+    \ #     #   - \"claude-3-5-sonnet-v2@20241022\"\n  #     #   - \"claude-3-5-haiku@20241022\"\n
+    \ #\n  #     # Option 2: Object format with custom visible names (RECOMMENDED)\n
+    \ #     # The key is the visible model name shown in the UI (can be any name you
+    want)\n  #     # The deploymentName is the actual Vertex AI model ID used for
+    API calls\n  #     # You can use friendly names (avoid spaces for cleaner YAML)
+    or technical IDs as keys\n  #     models:\n  #       claude-opus-4.5:\n  #         deploymentName:
+    claude-opus-4-5@20251101\n  #       claude-sonnet-4:\n  #         deploymentName:
+    claude-sonnet-4-20250514\n  #       claude-3.7-sonnet:\n  #         deploymentName:
+    claude-3-7-sonnet-20250219\n  #       claude-3.5-sonnet:\n  #         deploymentName:
+    claude-3-5-sonnet-v2@20241022\n  #       claude-3.5-haiku:\n  #         deploymentName:
+    claude-3-5-haiku@20241022\n  #\n  #     # Option 3: Mixed format with default
+    deploymentName\n  #     # Set a default deploymentName and use boolean values
+    for models\n  #     # deploymentName: claude-sonnet-4-20250514\n  #     # models:\n
+    \ #     #   claude-sonnet-4: true  # Will use the default deploymentName\n  #
+    \    #   claude-3.5-haiku:\n  #     #     deploymentName: claude-3-5-haiku@20241022
+    \ # Override for this model\n\n  custom:\n    # Groq Example\n    - name: 'groq'\n
+    \     apiKey: '${GROQ_API_KEY}'\n      baseURL: 'https://api.groq.com/openai/v1/'\n
+    \     models:\n        default:\n          - 'llama3-70b-8192'\n          - 'llama3-8b-8192'\n
+    \         - 'llama2-70b-4096'\n          - 'mixtral-8x7b-32768'\n          - 'gemma-7b-it'\n
+    \       fetch: false\n      titleConvo: true\n      titleModel: 'mixtral-8x7b-32768'\n
+    \     modelDisplayLabel: 'groq'\n\n    # Mistral AI Example\n    - name: 'Mistral'
+    # Unique name for the endpoint\n      # For `apiKey` and `baseURL`, you can use
+    environment variables that you define.\n      # recommended environment variables:\n
+    \     apiKey: '${MISTRAL_API_KEY}'\n      baseURL: 'https://api.mistral.ai/v1'\n\n
+    \     # Models configuration\n      models:\n        # List of default models
+    to use. At least one value is required.\n        default: ['mistral-tiny', 'mistral-small',
+    'mistral-medium']\n        # Fetch option: Set to true to fetch models from API.\n
+    \       fetch: true # Defaults to false.\n\n      # Optional configurations\n\n
+    \     # Title Conversation setting\n      titleConvo: true # Set to true to enable
+    title conversation\n\n      # Title Method: Choose between \"completion\" or \"functions\".\n
+    \     # titleMethod: \"completion\"  # Defaults to \"completion\" if omitted.\n\n
+    \     # Title Model: Specify the model to use for titles.\n      titleModel: 'mistral-tiny'
+    # Defaults to \"gpt-3.5-turbo\" if omitted.\n\n      # Summarize setting: Set
+    to true to enable summarization.\n      # summarize: false\n\n      # Summary
+    Model: Specify the model to use if summarization is enabled.\n      # summaryModel:
+    \"mistral-tiny\"  # Defaults to \"gpt-3.5-turbo\" if omitted.\n\n      # Force
+    Prompt setting: If true, sends a `prompt` parameter instead of `messages`.\n      #
+    forcePrompt: false\n\n      # The label displayed for the AI model in messages.\n
+    \     modelDisplayLabel: 'Mistral' # Default is \"AI\" when not set.\n\n      #
+    Add additional parameters to the request. Default params will be overwritten.\n
+    \     # addParams:\n      # safe_prompt: true # This field is specific to Mistral
+    AI: https://docs.mistral.ai/api/\n\n      # Drop Default params parameters from
+    the request. See default params in guide linked below.\n      # NOTE: For Mistral,
+    it is necessary to drop the following parameters or you will encounter a 422 Error:\n
+    \     dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty']\n\n
+    \   # OpenRouter Example\n    - name: 'OpenRouter'\n      # For `apiKey` and `baseURL`,
+    you can use environment variables that you define.\n      # recommended environment
+    variables:\n      apiKey: '${OPENROUTER_KEY}'\n      baseURL: 'https://openrouter.ai/api/v1'\n
+    \     headers:\n        x-librechat-body-parentmessageid: '{{LIBRECHAT_BODY_PARENTMESSAGEID}}'\n
+    \     models:\n        default: ['meta-llama/llama-3-70b-instruct']\n        fetch:
+    true\n      titleConvo: true\n      titleModel: 'meta-llama/llama-3-70b-instruct'\n
+    \     # Recommended: Drop the stop parameter from the request as Openrouter models
+    use a variety of stop tokens.\n      dropParams: ['stop']\n      modelDisplayLabel:
+    'OpenRouter'\n\n    # Helicone Example\n    - name: 'Helicone'\n      # For `apiKey`
+    and `baseURL`, you can use environment variables that you define.\n      # recommended
+    environment variables:\n      apiKey: '${HELICONE_KEY}'\n      baseURL: 'https://ai-gateway.helicone.ai'\n
+    \     headers:\n        x-librechat-body-parentmessageid: '{{LIBRECHAT_BODY_PARENTMESSAGEID}}'\n
+    \     models:\n        default:\n          ['gpt-4o-mini', 'claude-4.5-sonnet',
+    'llama-3.1-8b-instruct', 'gemini-2.5-flash-lite']\n        fetch: true\n      titleConvo:
+    true\n      titleModel: 'gpt-4o-mini'\n      modelDisplayLabel: 'Helicone'\n      iconURL:
+    https://marketing-assets-helicone.s3.us-west-2.amazonaws.com/helicone.png\n\n
+    \   # Portkey AI Example\n    - name: 'Portkey'\n      apiKey: 'dummy'\n      baseURL:
+    'https://api.portkey.ai/v1'\n      headers:\n        x-portkey-api-key: '${PORTKEY_API_KEY}'\n
+    \       x-portkey-virtual-key: '${PORTKEY_OPENAI_VIRTUAL_KEY}'\n      models:\n
+    \       default: ['gpt-4o-mini', 'gpt-4o', 'chatgpt-4o-latest']\n        fetch:
+    true\n      titleConvo: true\n      titleModel: 'current_model'\n      summarize:
+    false\n      summaryModel: 'current_model'\n      forcePrompt: false\n      modelDisplayLabel:
+    'Portkey'\n      iconURL: https://images.crunchbase.com/image/upload/c_pad,f_auto,q_auto:eco,dpr_1/rjqy7ghvjoiu4cd1xjbf\n\n
+    \ # AWS Bedrock Example\n  # Note: Bedrock endpoint is configured via environment
+    variables\n  # bedrock:\n  #   # Guardrail Configuration\n  #   guardrailConfig:\n
+    \ #     guardrailIdentifier: \"your-guardrail-id\"\n  #     guardrailVersion:
+    \"1\"\n  #     \n  #     # Trace behavior for debugging (optional)\n  #     #
+    - \"enabled\": Include basic trace information about guardrail assessments\n  #
+    \    # - \"enabled_full\": Include comprehensive trace details (recommended for
+    debugging)\n  #     # - \"disabled\": No trace information (default)\n  #     #
+    Trace output is logged to application log files for compliance auditing\n  #     trace:
+    \"enabled\"\n\n# Example modelSpecs configuration showing grouping options\n#
+    The 'group' field organizes model specs in the UI selector:\n# - If 'group' matches
+    an endpoint name (e.g., \"openAI\", \"groq\"), the spec appears nested under that
+    endpoint\n# - If 'group' is a custom name (doesn't match any endpoint), it creates
+    a separate collapsible section\n# - If 'group' is omitted, the spec appears as
+    a standalone item at the top level\n#\n# The 'groupIcon' field sets an icon for
+    custom groups:\n# - Only needs to be set on one spec per group (first one is used)\n#
+    - Can be a URL or a built-in endpoint key (e.g., \"openAI\", \"anthropic\", \"groq\")\n#
+    modelSpecs:\n#   list:\n#     # Example 1: Nested under an endpoint (grouped with
+    openAI endpoint)\n#     - name: \"gpt-4o\"\n#       label: \"GPT-4 Optimized\"\n#
+    \      description: \"Most capable GPT-4 model with multimodal support\"\n#       group:
+    \"openAI\"  # String value matching the endpoint name\n#       preset:\n#         endpoint:
+    \"openAI\"\n#         model: \"gpt-4o\"\n#\n#     # Example 2: Nested under a
+    custom endpoint (grouped with groq endpoint)\n#     - name: \"llama3-70b-8192\"\n#
+    \      label: \"Llama 3 70B\"\n#       description: \"Fastest inference available
+    - great for quick responses\"\n#       group: \"groq\"  # String value matching
+    your custom endpoint name from endpoints.custom\n#       preset:\n#         endpoint:
+    \"groq\"\n#         model: \"llama3-70b-8192\"\n#\n#     # Example 3: Custom group
+    with icon (creates a separate collapsible section)\n#     - name: \"coding-assistant\"\n#
+    \      label: \"Coding Assistant\"\n#       description: \"Specialized for coding
+    tasks\"\n#       group: \"my-assistants\"  # Custom string - doesn't match any
+    endpoint, so creates its own group\n#       groupIcon: \"https://example.com/icons/assistants.png\"
+    \ # Icon URL for the group\n#       preset:\n#         endpoint: \"openAI\"\n#
+    \        model: \"gpt-4o\"\n#         instructions: \"You are an expert coding
+    assistant...\"\n#         temperature: 0.3\n#\n#     - name: \"writing-assistant\"\n#
+    \      label: \"Writing Assistant\"\n#       description: \"Specialized for creative
+    writing\"\n#       group: \"my-assistants\"  # Same custom group name - both specs
+    appear in same section\n#       # No need to set groupIcon again - the first spec's
+    icon is used\n#       preset:\n#         endpoint: \"anthropic\"\n#         model:
+    \"claude-sonnet-4\"\n#         instructions: \"You are a creative writing expert...\"\n#\n#
+    \    # Example 4: Custom group using built-in icon key\n#     - name: \"fast-models\"\n#
+    \      label: \"Fast Response Model\"\n#       group: \"Fast Models\"\n#       groupIcon:
+    \"groq\"  # Uses the built-in Groq icon\n#       preset:\n#         endpoint:
+    \"groq\"\n#         model: \"llama3-8b-8192\"\n#\n#     # Example 5: Standalone
+    (no group - appears at top level)\n#     - name: \"general-assistant\"\n#       label:
+    \"General Assistant\"\n#       description: \"General purpose assistant\"\n#       #
+    No 'group' field - appears as standalone item at top level (not nested)\n#       preset:\n#
+    \        endpoint: \"openAI\"\n#         model: \"gpt-4o-mini\"\n\n# fileConfig:\n#
+    \  endpoints:\n#     assistants:\n#       fileLimit: 5\n#       fileSizeLimit:
+    10  # Maximum size for an individual file in MB\n#       totalSizeLimit: 50  #
+    Maximum total size for all files in a single request in MB\n#       supportedMimeTypes:\n#
+    \        - \"image/.*\"\n#         - \"application/pdf\"\n#     openAI:\n#       disabled:
+    true  # Disables file uploading to the OpenAI endpoint\n#     default:\n#       totalSizeLimit:
+    20\n#     YourCustomEndpointName:\n#       fileLimit: 2\n#       fileSizeLimit:
+    5\n#   serverFileSizeLimit: 100  # Global server file size limit in MB\n#   avatarSizeLimit:
+    2  # Limit for user avatar image size in MB\n#   imageGeneration: # Image Gen
+    settings, either percentage or px\n#     percentage: 100\n#     px: 1024\n#   #
+    Client-side image resizing to prevent upload errors\n#   clientImageResize:\n#
+    \    enabled: false  # Enable/disable client-side image resizing (default: false)\n#
+    \    maxWidth: 1900  # Maximum width for resized images (default: 1900)\n#     maxHeight:
+    1900  # Maximum height for resized images (default: 1900)\n#     quality: 0.92
+    \ # JPEG quality for compression (0.0-1.0, default: 0.92)\n# # See the Custom
+    Configuration Guide for more information on Assistants Config:\n# # https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/assistants_endpoint\n\n#
+    Web Search Configuration (optional)\n# webSearch:\n#   # Jina Reranking Configuration\n#
+    \  jinaApiKey: '${JINA_API_KEY}'  # Your Jina API key\n#   jinaApiUrl: '${JINA_API_URL}'
+    \ # Custom Jina API URL (optional, defaults to https://api.jina.ai/v1/rerank)\n#
+    \  # Other rerankers\n#   cohereApiKey: '${COHERE_API_KEY}'\n#   # Search providers\n#
+    \  serperApiKey: '${SERPER_API_KEY}'\n#   searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'\n#
+    \  searxngApiKey: '${SEARXNG_API_KEY}'\n#   # Content scrapers\n#   firecrawlApiKey:
+    '${FIRECRAWL_API_KEY}'\n#   firecrawlApiUrl: '${FIRECRAWL_API_URL}'\n\n# Memory
+    configuration for user memories\n# memory:\n#   # (optional) Disable memory functionality\n#
+    \  disabled: false\n#   # (optional) Restrict memory keys to specific values to
+    limit memory storage and improve consistency\n#   validKeys: [\"preferences\",
+    \"work_info\", \"personal_info\", \"skills\", \"interests\", \"context\"]\n#   #
+    (optional) Maximum token limit for memory storage (not yet implemented for token
+    counting)\n#   tokenLimit: 10000\n#   # (optional) Enable personalization features
+    (defaults to true if memory is configured)\n#   # When false, users will not see
+    the Personalization tab in settings\n#   personalize: true\n#   # Memory agent
+    configuration - either use an existing agent by ID or define inline\n#   agent:\n#
+    \    # Option 1: Use existing agent by ID\n#     id: \"your-memory-agent-id\"\n#
+    \    # Option 2: Define agent inline\n#     # provider: \"openai\"\n#     # model:
+    \"gpt-4o-mini\"\n#     # instructions: \"You are a memory management assistant.
+    Store and manage user information accurately.\"\n#     # model_parameters:\n#
+    \    #   temperature: 0.1\n"
+kind: ConfigMap
+metadata:
+  name: librechat-config-yaml
+  namespace: artha-ai

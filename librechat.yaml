@@ -185,14 +185,9 @@ actions:
 # Supports wildcards: '*.example.com' matches 'api.example.com', 'staging.example.com', etc.
 # Supports protocol/port restrictions: 'https://api.example.com:8443' restricts to specific protocol/port.
 mcpSettings:
-   allowedDomains:
-     - 'host.docker.internal'    # Docker host access (required for Docker setups)
-     - 'localhost'               # Local development
-     - 'mcp.arthatest.xyz'       # Artha MCP server
-     - 'http://127.0.0.1:8000/stdio'
-     - 'http://127.0.0.1:8000/sse'
-     - 'http://localhost:8000/sse'
-    
+  allowedDomains:
+    - 'localhost'               # Local development
+    - 'mcp.arthatest.xyz'       # Artha MCP server
 
 # MCP Servers Configuration
 mcpServers:
@@ -334,18 +329,16 @@ endpoints:
   #     #     deploymentName: claude-3-5-haiku@20241022  # Override for this model
 
   custom:
-    # Groq Example
+    # Groq - only mixtral has enough context (32k) to fit 54 MCP tool descriptions (6k tokens)
+    # 8k models (llama3-70b-8192 etc.) will error with tools loaded; use OpenAI/Anthropic instead
     - name: 'groq'
       apiKey: '${GROQ_API_KEY}'
       baseURL: 'https://api.groq.com/openai/v1/'
       models:
         default:
-          - 'llama3-70b-8192'
-          - 'llama3-8b-8192'
-          - 'llama2-70b-4096'
           - 'mixtral-8x7b-32768'
-          - 'gemma-7b-it'
         fetch: false
+      maxContextTokens: 31000
       titleConvo: true
       titleModel: 'mixtral-8x7b-32768'
       modelDisplayLabel: 'groq'
@@ -363,6 +356,7 @@ endpoints:
         default: ['mistral-tiny', 'mistral-small', 'mistral-medium']
         # Fetch option: Set to true to fetch models from API.
         fetch: true # Defaults to false.
+      maxContextTokens: 32000
 
       # Optional configurations
 
@@ -406,6 +400,7 @@ endpoints:
       models:
         default: ['meta-llama/llama-3-70b-instruct']
         fetch: true
+      maxContextTokens: 32000
       titleConvo: true
       titleModel: 'meta-llama/llama-3-70b-instruct'
       # Recommended: Drop the stop parameter from the request as Openrouter models use a variety of stop tokens.
@@ -424,6 +419,7 @@ endpoints:
         default:
           ['gpt-4o-mini', 'claude-4.5-sonnet', 'llama-3.1-8b-instruct', 'gemini-2.5-flash-lite']
         fetch: true
+      maxContextTokens: 128000
       titleConvo: true
       titleModel: 'gpt-4o-mini'
       modelDisplayLabel: 'Helicone'
@@ -439,6 +435,7 @@ endpoints:
       models:
         default: ['gpt-4o-mini', 'gpt-4o', 'chatgpt-4o-latest']
         fetch: true
+      maxContextTokens: 128000
       titleConvo: true
       titleModel: 'current_model'
       summarize: false

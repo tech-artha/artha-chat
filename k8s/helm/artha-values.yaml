@@ -1,0 +1,100 @@
+# Artha AI - LibreChat GKE Deployment Values
+# Cluster: artha-dev-cluster (asia-south1)
+# External IP: 34.93.57.200
+
+image:
+  registry: asia-south1-docker.pkg.dev
+  repository: artha-dev-project/artha-dev-registry/librechat
+  tag: latest
+  pullPolicy: Always
+
+librechat:
+  existingSecretName: "librechat-credentials-env"
+  existingConfigYaml: "librechat-config-yaml"
+
+  configEnv:
+    HOST: "0.0.0.0"
+    PORT: "3080"
+    NODE_ENV: "production"
+    DOMAIN_CLIENT: "https://chat.arthatest.xyz"
+    DOMAIN_SERVER: "https://chat.arthatest.xyz"
+    TRUST_PROXY: "1"
+    CONSOLE_JSON: "true"
+    DISABLE_COMPRESSION: "true"
+    SEARCH: "false"
+    ALLOW_EMAIL_LOGIN: "true"
+    ALLOW_REGISTRATION: "true"
+    ALLOW_SOCIAL_LOGIN: "false"
+    ALLOW_SOCIAL_REGISTRATION: "false"
+    ALLOW_UNVERIFIED_EMAIL_LOGIN: "true"
+    APP_TITLE: "Artha AI"
+    BAN_VIOLATIONS: "true"
+    LIMIT_CONCURRENT_MESSAGES: "true"
+    CONCURRENT_MESSAGE_MAX: "2"
+
+  imageVolume:
+    enabled: false
+
+# MongoDB Atlas - disable in-cluster MongoDB
+mongodb:
+  enabled: false
+
+# MeilisSearch - disabled (insufficient cluster capacity, re-enable after quota increase)
+meilisearch:
+  enabled: false
+
+# RAG API - disabled (insufficient cluster capacity, re-enable after quota increase)
+librechat-rag-api:
+  enabled: false
+
+service:
+  type: ClusterIP
+  port: 3080
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: chat.arthatest.xyz
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: artha-ai-tls
+      hosts:
+        - chat.arthatest.xyz
+
+# Recreate avoids stuck rolling updates when cluster has no spare capacity for 2 pods
+updateStrategy:
+  type: Recreate
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3080
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  failureThreshold: 5
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 3
