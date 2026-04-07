@@ -110,6 +110,13 @@ jobs:
           kubectl get namespace ${{ env.NAMESPACE }} 2>/dev/null || \
             kubectl create namespace ${{ env.NAMESPACE }}
 
+      - name: Patch HOST in secret to bind on all interfaces
+        run: |
+          kubectl patch secret librechat-credentials-env \
+            --namespace ${{ env.NAMESPACE }} \
+            --type='json' \
+            -p="[{\"op\":\"replace\",\"path\":\"/data/HOST\",\"value\":\"$(echo -n '0.0.0.0' | base64)\"}]" 2>/dev/null || true
+
       - name: Reconcile ConfigMap from librechat.yaml
         run: |
           kubectl create configmap librechat-config-yaml \
