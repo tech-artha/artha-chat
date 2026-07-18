@@ -1,4 +1,8 @@
-import { INTERFACE_PERMISSION_FIELDS, PERMISSION_SUB_KEYS } from 'librechat-data-provider';
+import {
+  BASE_ONLY_CONFIG_SECTIONS,
+  INTERFACE_PERMISSION_FIELDS,
+  PERMISSION_SUB_KEYS,
+} from 'librechat-data-provider';
 import type { TCustomConfig } from 'librechat-data-provider';
 import type { AppConfig, IConfig } from '~/types';
 
@@ -6,6 +10,20 @@ type AnyObject = { [key: string]: unknown };
 
 const MAX_MERGE_DEPTH = 10;
 const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const BASE_ONLY_OVERRIDE_SECTIONS = new Set<string>(BASE_ONLY_CONFIG_SECTIONS);
+
+/**
+ * Paths within the config tree where arrays of objects should be merged by
+ * a key field rather than replaced wholesale. `deepMerge` matches items by
+ * the given key, deep-merges matching pairs, preserves unmatched base items,
+ * and appends new override-only items.
+ *
+ * Paths use AppConfig key names (post-OVERRIDE_KEY_MAP remapping),
+ * not YAML-level key names. E.g. use `interfaceConfig.x`, not `interface.x`.
+ */
+const ARRAY_MERGE_KEYS: Record<string, string> = {
+  'endpoints.custom': 'name',
+};
 
 /**
  * Maps YAML-level override keys (TCustomConfig) to their AppConfig equivalents.
@@ -23,12 +41,106 @@ const OVERRIDE_KEY_MAP: Partial<Record<keyof TCustomConfig, keyof AppConfig>> = 
   turnstile: 'turnstileConfig',
 };
 
-function deepMerge<T extends AnyObject>(target: T, source: AnyObject, depth = 0): T {
+function isSafePath(path: string): boolean {
+  const segments = path.split('.');
+  if (
+    path.length === 0 ||
+    path.startsWith('.') ||
+    path.endsWith('.') ||
+    path.includes('..') ||
+    segments.some((segment) => segment.length === 0 || UNSAFE_KEYS.has(segment))
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function remapOverridePath(path: string): string {
+  const [first, ...rest] = path.split('.');
+  const mappedFirst = OVERRIDE_KEY_MAP[first as keyof typeof OVERRIDE_KEY_MAP] ?? first;
+  return [mappedFirst, ...rest].join('.');
+}
+
+function deletePath<T extends AnyObject>(target: T, path: string): T {
+  if (!isSafePath(path)) {
+    return target;
+  }
+
+  const segments = path.split('.');
+  const result = { ...target } as AnyObject;
+  let cursor: AnyObject = result;
+
+  for (let index = 0; index < segments.length - 1; index++) {
+    const segment = segments[index];
+    const value = cursor[segment];
+    if (value == null || typeof value !== 'object' || Array.isArray(value)) {
+      return result as T;
+    }
+    const cloned = { ...(value as AnyObject) };
+    cursor[segment] = cloned;
+    cursor = cloned;
+  }
+
+  delete cursor[segments[segments.length - 1]];
+  return result as T;
+}
+
+function mergeArrayByKey(
+  target: AnyObject[],
+  source: AnyObject[],
+  keyField: string,
+  depth: number,
+  path: string,
+): AnyObject[] {
+  const sourceByKey = new Map<unknown, AnyObject>();
+  for (const item of source) {
+    if (item != null && typeof item === 'object') {
+      const key = item[keyField];
+      // Source items without a key value are skipped: no stable identity
+      // for matching or appending. (Keyless target items are preserved as-is below.)
+      if (key != null) {
+        sourceByKey.set(key, item);
+      }
+    }
+  }
+
+  const result: AnyObject[] = [];
+  const seen = new Set<unknown>();
+
+  // Pass the array container path (not a per-element path) so item
+  // properties build paths like 'endpoints.custom.baseURL' for any
+  // nested ARRAY_MERGE_KEYS lookups.
+  for (const item of target) {
+    if (item != null && typeof item === 'object') {
+      const key = item[keyField];
+      const override = key != null ? sourceByKey.get(key) : undefined;
+      if (override) {
+        result.push(deepMerge(item, override, depth + 1, path));
+        seen.add(key);
+      } else {
+        result.push({ ...item });
+      }
+    } else {
+      result.push(item);
+    }
+  }
+
+  for (const key of sourceByKey.keys()) {
+    if (!seen.has(key)) {
+      result.push(deepMerge({} as AnyObject, sourceByKey.get(key)!, depth + 1, path));
+    }
+  }
+
+  return result;
+}
+
+function deepMerge<T extends AnyObject>(target: T, source: AnyObject, depth = 0, path = ''): T {
   const result = { ...target } as AnyObject;
   for (const key of Object.keys(source)) {
     if (UNSAFE_KEYS.has(key)) {
       continue;
     }
+    const currentPath = path ? `${path}.${key}` : key;
     const sourceVal = source[key];
     const targetVal = result[key];
     if (
@@ -40,7 +152,25 @@ function deepMerge<T extends AnyObject>(target: T, source: AnyObject, depth = 0)
       typeof targetVal === 'object' &&
       !Array.isArray(targetVal)
     ) {
-      result[key] = deepMerge(targetVal as AnyObject, sourceVal as AnyObject, depth + 1);
+      result[key] = deepMerge(
+        targetVal as AnyObject,
+        sourceVal as AnyObject,
+        depth + 1,
+        currentPath,
+      );
+    } else if (
+      depth < MAX_MERGE_DEPTH &&
+      Array.isArray(sourceVal) &&
+      Array.isArray(targetVal) &&
+      ARRAY_MERGE_KEYS[currentPath]
+    ) {
+      result[key] = mergeArrayByKey(
+        targetVal as AnyObject[],
+        sourceVal as AnyObject[],
+        ARRAY_MERGE_KEYS[currentPath],
+        depth,
+        currentPath,
+      );
     } else {
       result[key] = sourceVal;
     }
@@ -63,9 +193,20 @@ export function mergeConfigOverrides(baseConfig: AppConfig, configs: IConfig[]):
 
   let merged = { ...baseConfig };
   for (const config of sorted) {
+    if (Array.isArray(config.tombstones)) {
+      for (const path of config.tombstones) {
+        if (typeof path === 'string') {
+          merged = deletePath(merged, remapOverridePath(path));
+        }
+      }
+    }
+
     if (config.overrides && typeof config.overrides === 'object') {
       const remapped: AnyObject = {};
       for (const [key, value] of Object.entries(config.overrides)) {
+        if (BASE_ONLY_OVERRIDE_SECTIONS.has(key)) {
+          continue;
+        }
         const mappedKey = OVERRIDE_KEY_MAP[key as keyof typeof OVERRIDE_KEY_MAP] ?? key;
         if (
           key === 'interface' &&

@@ -1,5 +1,9 @@
 import type { AppConfig } from '@librechat/data-schemas';
-import { createAppConfigService } from './service';
+import {
+  createAppConfigService,
+  _resetOverrideStrictCache,
+  getAppConfigOptionsFromUser,
+} from './service';
 
 /** Extends AppConfig with mock fields used by merge behavior tests. */
 interface TestConfig extends AppConfig {
@@ -229,6 +233,169 @@ describe('createAppConfigService', () => {
       expect((config as TestConfig).x).toBe('admin-only');
     });
 
+    it('passes empty principals to getApplicableConfigs when buildPrincipals returns empty', async () => {
+      const deps = createDeps({
+        getUserPrincipals: jest.fn().mockResolvedValue([]),
+      });
+      const { getAppConfig } = createAppConfigService(deps);
+
+      const config = await getAppConfig({ userId: 'uid1', role: 'USER' });
+
+      expect(deps.getUserPrincipals).toHaveBeenCalledWith({ userId: 'uid1', role: 'USER' });
+      expect(deps.getApplicableConfigs).toHaveBeenCalledWith([]);
+      expect(config).toEqual(deps._baseConfig);
+    });
+
+    describe('strict mode (TENANT_ISOLATION_STRICT=true)', () => {
+      beforeEach(() => {
+        process.env.TENANT_ISOLATION_STRICT = 'true';
+        _resetOverrideStrictCache();
+      });
+      afterEach(() => {
+        delete process.env.TENANT_ISOLATION_STRICT;
+        _resetOverrideStrictCache();
+      });
+
+      it('skips DB query for empty principals without tenantId and does not cache', async () => {
+        const deps = createDeps();
+        const { getAppConfig } = createAppConfigService(deps);
+
+        const config = await getAppConfig();
+
+        expect(deps.getApplicableConfigs).not.toHaveBeenCalled();
+        expect(config).toEqual(deps._baseConfig);
+
+        const setCalls = deps._cache.set.mock.calls.filter(
+          ([key]: [string, unknown]) => key !== '_BASE_',
+        );
+        expect(setCalls).toHaveLength(0);
+      });
+
+      it('queries DB when tenantId is present', async () => {
+        const deps = createDeps();
+        const { getAppConfig } = createAppConfigService(deps);
+
+        await getAppConfig({ tenantId: 'tenant-a' });
+
+        expect(deps.getApplicableConfigs).toHaveBeenCalledWith([]);
+      });
+
+      it('warns once when non-empty principals proceed without tenantId', async () => {
+        const { logger } = jest.requireActual('@librechat/data-schemas');
+        const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+        const deps = createDeps();
+        const { getAppConfig } = createAppConfigService(deps);
+
+        await getAppConfig({ role: 'USER' });
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No tenantId in strict mode'));
+        const warnCount = warnSpy.mock.calls.length;
+
+        await getAppConfig({ role: 'ADMIN' });
+        expect(warnSpy).toHaveBeenCalledTimes(warnCount);
+
+        warnSpy.mockRestore();
+      });
+
+      it('falls through to getApplicableConfigs when ALS has tenant context despite no tenantId param', async () => {
+        const { tenantStorage } = jest.requireActual('@librechat/data-schemas');
+        const deps = createDeps({
+          getApplicableConfigs: jest
+            .fn()
+            .mockResolvedValue([{ priority: 5, overrides: { restricted: true }, isActive: true }]),
+        });
+        const { getAppConfig } = createAppConfigService(deps);
+
+        const config = await tenantStorage.run({ tenantId: 'tenant-a' }, async () =>
+          getAppConfig(),
+        );
+
+        expect(deps.getApplicableConfigs).toHaveBeenCalledWith([]);
+        expect((config as TestConfig).restricted).toBe(true);
+      });
+    });
+
+    describe('non-strict mode (TENANT_ISOLATION_STRICT unset)', () => {
+      beforeEach(() => {
+        delete process.env.TENANT_ISOLATION_STRICT;
+        _resetOverrideStrictCache();
+      });
+      afterEach(() => {
+        _resetOverrideStrictCache();
+      });
+
+      it('passes empty principals through to getApplicableConfigs', async () => {
+        const deps = createDeps();
+        const { getAppConfig } = createAppConfigService(deps);
+
+        await getAppConfig();
+
+        expect(deps.getApplicableConfigs).toHaveBeenCalledWith([]);
+      });
+
+      it('scopes the override cache key to the ALS tenant when no tenantId param is given', async () => {
+        const { tenantStorage } = jest.requireActual('@librechat/data-schemas');
+        const deps = createDeps({
+          getApplicableConfigs: jest
+            .fn()
+            .mockResolvedValue([{ priority: 10, overrides: { x: 1 }, isActive: true }]),
+        });
+        const { getAppConfig } = createAppConfigService(deps);
+
+        await tenantStorage.run({ tenantId: 'tenant-a' }, async () =>
+          getAppConfig({ role: 'USER' }),
+        );
+
+        const overrideKey = [...deps._cache._store.keys()].find((k: string) =>
+          k.includes('_OVERRIDE_:'),
+        );
+        expect(overrideKey).toBe('app_config:_OVERRIDE_:tenant-a:USER');
+        expect(overrideKey).not.toContain('__default__');
+      });
+
+      it('does not serve one tenant a cached config built for another tenant', async () => {
+        const { tenantStorage, getTenantId } = jest.requireActual('@librechat/data-schemas');
+        // Each tenant's DB overrides carry a marker derived from the active ALS tenant.
+        const deps = createDeps({
+          getApplicableConfigs: jest
+            .fn()
+            .mockImplementation(async () => [
+              { priority: 10, overrides: { whoami: getTenantId() }, isActive: true },
+            ]),
+        });
+        const { getAppConfig } = createAppConfigService(deps);
+
+        const configA = (await tenantStorage.run({ tenantId: 'tenant-a' }, async () =>
+          getAppConfig({ role: 'USER' }),
+        )) as TestConfig & { whoami?: string };
+        const configB = (await tenantStorage.run({ tenantId: 'tenant-b' }, async () =>
+          getAppConfig({ role: 'USER' }),
+        )) as TestConfig & { whoami?: string };
+
+        expect(configA.whoami).toBe('tenant-a');
+        expect(configB.whoami).toBe('tenant-b');
+        // A cache collision would short-circuit the second tenant's DB read.
+        expect(deps.getApplicableConfigs).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('does not cache on buildPrincipals error — retries on next request', async () => {
+      const deps = createDeps({
+        getUserPrincipals: jest
+          .fn()
+          .mockRejectedValueOnce(new Error('transient'))
+          .mockResolvedValue([{ principalType: 'role', principalId: 'USER' }]),
+      });
+      const { getAppConfig } = createAppConfigService(deps);
+
+      const first = await getAppConfig({ userId: 'uid1', role: 'USER' });
+      expect(first).toEqual(deps._baseConfig);
+      expect(deps.getApplicableConfigs).not.toHaveBeenCalled();
+
+      await getAppConfig({ userId: 'uid1', role: 'USER' });
+      expect(deps.getUserPrincipals).toHaveBeenCalledTimes(2);
+      expect(deps.getApplicableConfigs).toHaveBeenCalledTimes(1);
+    });
+
     it('falls back to base config on getApplicableConfigs error', async () => {
       const deps = createDeps({
         getApplicableConfigs: jest.fn().mockRejectedValue(new Error('DB down')),
@@ -250,6 +417,33 @@ describe('createAppConfigService', () => {
         userId: 'uid1',
         role: 'USER',
       });
+    });
+
+    it('passes local identity through to getUserPrincipals when provided', async () => {
+      const deps = createDeps();
+      const { getAppConfig } = createAppConfigService(deps);
+
+      await getAppConfig({ role: 'USER', userId: 'uid1', idOnTheSource: null });
+
+      expect(deps.getUserPrincipals).toHaveBeenCalledWith({
+        userId: 'uid1',
+        role: 'USER',
+        idOnTheSource: null,
+      });
+    });
+
+    it('uses the same override cache entry when source identity changes for a user', async () => {
+      const deps = createDeps();
+      const { getAppConfig } = createAppConfigService(deps);
+
+      await getAppConfig({ role: 'USER', userId: 'uid1', idOnTheSource: null });
+      await getAppConfig({ role: 'USER', userId: 'uid1', idOnTheSource: 'source-user-1' });
+
+      expect(deps.getUserPrincipals).toHaveBeenCalledTimes(1);
+      expect(deps.getApplicableConfigs).toHaveBeenCalledTimes(1);
+      expect([...deps._cache._store.keys()]).toEqual(
+        expect.arrayContaining(['app_config:_OVERRIDE_:__default__:USER:uid1']),
+      );
     });
 
     it('does not call getUserPrincipals when only role is provided', async () => {
@@ -339,6 +533,51 @@ describe('createAppConfigService', () => {
 
       // Should not throw — logs warning and relies on TTL expiry
       await expect(clearOverrideCache()).resolves.toBeUndefined();
+    });
+  });
+});
+
+describe('getAppConfigOptionsFromUser', () => {
+  it('maps resolved request users to app config principal options', () => {
+    expect(
+      getAppConfigOptionsFromUser({
+        id: 'uid1',
+        role: 'USER',
+        tenantId: 'tenant-a',
+        idOnTheSource: 'source-user-1',
+      }),
+    ).toEqual({
+      role: 'USER',
+      userId: 'uid1',
+      idOnTheSource: 'source-user-1',
+      tenantId: 'tenant-a',
+    });
+  });
+
+  it('preserves omitted source identity for partial users so fallback lookup can run', () => {
+    expect(getAppConfigOptionsFromUser({ id: 'uid1', role: 'USER' })).toEqual({
+      role: 'USER',
+      userId: 'uid1',
+      idOnTheSource: undefined,
+      tenantId: undefined,
+    });
+  });
+
+  it('marks explicitly normalized local users with null idOnTheSource', () => {
+    expect(getAppConfigOptionsFromUser({ id: 'uid1', role: 'USER', idOnTheSource: null })).toEqual({
+      role: 'USER',
+      userId: 'uid1',
+      idOnTheSource: null,
+      tenantId: undefined,
+    });
+  });
+
+  it('omits source identity when no user id is available', () => {
+    expect(getAppConfigOptionsFromUser({ role: 'USER', tenantId: 'tenant-a' })).toEqual({
+      role: 'USER',
+      userId: undefined,
+      idOnTheSource: undefined,
+      tenantId: 'tenant-a',
     });
   });
 });

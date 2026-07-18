@@ -1,51 +1,61 @@
 import { memo, useCallback, lazy, Suspense } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useRecoilValue } from 'recoil';
+import { SquarePen } from 'lucide-react';
 import { QueryKeys } from 'librechat-data-provider';
-import { Skeleton, Sidebar, Button, TooltipAnchor, NewChatIcon } from '@librechat/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { Skeleton, Sidebar, Button, TooltipAnchor } from '@librechat/client';
 import type { NavLink } from '~/common';
+import { useShortcutAriaKey, useShortcutHint } from '~/hooks/useKeyboardShortcuts';
+import { useActivePanel, resolveActivePanel, DEFAULT_PANEL } from '~/Providers';
 import { CLOSE_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
-import { useActivePanel, resolveActivePanel } from '~/Providers';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache, cn } from '~/utils';
 import store from '~/store';
 
 const AccountSettings = lazy(() => import('~/components/Nav/AccountSettings'));
 
-const NewChatButton = memo(function NewChatButton() {
+const NewChatButton = memo(function NewChatButton({
+  setActive,
+}: {
+  setActive: (id: string) => void;
+}) {
   const localize = useLocalize();
   const queryClient = useQueryClient();
   const { newConversation } = useNewConvo();
   const conversation = useRecoilValue(store.conversationByIndex(0));
+  const switchToHistory = useRecoilValue(store.newChatSwitchToHistory);
+  const tooltipDescription = useShortcutHint('newChat', localize('com_ui_new_chat'));
+  const ariaKey = useShortcutAriaKey('newChat');
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>) => {
-      if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
-        return;
+      if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        clearMessagesCache(queryClient, conversation?.conversationId);
+        queryClient.invalidateQueries([QueryKeys.messages]);
+        newConversation();
+        if (switchToHistory) {
+          setActive(DEFAULT_PANEL);
+        }
       }
-      e.preventDefault();
-      clearMessagesCache(queryClient, conversation?.conversationId);
-      queryClient.invalidateQueries([QueryKeys.messages]);
-      newConversation();
     },
-    [queryClient, conversation?.conversationId, newConversation],
+    [queryClient, conversation?.conversationId, newConversation, switchToHistory, setActive],
   );
 
   return (
     <TooltipAnchor
       side="right"
-      description={localize('com_ui_new_chat')}
+      description={tooltipDescription}
       render={
         <a
           href="/c/new"
           data-testid="new-chat-button"
           aria-label={localize('com_ui_new_chat')}
+          aria-keyshortcuts={ariaKey}
           className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-surface-hover"
           onClick={handleClick}
         >
-          <div className="flex size-6 items-center justify-center rounded-full bg-text-primary">
-            <NewChatIcon className="size-3.5 text-white dark:text-black" />
-          </div>
+          <SquarePen className="h-5 w-5 text-text-primary" />
         </a>
       }
     />
@@ -58,12 +68,14 @@ const NavIconButton = memo(function NavIconButton({
   expanded,
   setActive,
   onExpand,
+  onCollapse,
 }: {
   link: NavLink;
   isActive: boolean;
   expanded: boolean;
   setActive: (id: string) => void;
   onExpand?: () => void;
+  onCollapse?: () => void;
 }) {
   const localize = useLocalize();
 
@@ -73,6 +85,10 @@ const NavIconButton = memo(function NavIconButton({
         link.onClick(e);
         return;
       }
+      if (isActive && expanded) {
+        onCollapse?.();
+        return;
+      }
       if (!isActive) {
         setActive(link.id);
       }
@@ -80,7 +96,7 @@ const NavIconButton = memo(function NavIconButton({
         onExpand?.();
       }
     },
-    [link, isActive, setActive, expanded, onExpand],
+    [link, isActive, setActive, expanded, onExpand, onCollapse],
   );
 
   return (
@@ -93,13 +109,14 @@ const NavIconButton = memo(function NavIconButton({
           variant="ghost"
           aria-label={localize(link.title)}
           aria-pressed={isActive}
+          data-testid={`nav-panel-${link.id}`}
           className={cn(
             'h-9 w-9 rounded-lg',
             isActive ? 'bg-surface-active-alt text-text-primary' : 'text-text-secondary',
           )}
           onClick={handleClick}
         >
-          <link.icon className="h-4 w-4" aria-hidden="true" />
+          <link.icon className="h-5 w-5" aria-hidden="true" />
         </Button>
       }
     />
@@ -123,12 +140,14 @@ function ExpandedPanel({
 
   const toggleLabel = expanded ? 'com_nav_close_sidebar' : 'com_nav_open_sidebar';
   const toggleClick = expanded ? onCollapse : onExpand;
+  const toggleSidebarHint = useShortcutHint('toggleSidebar', localize(toggleLabel));
+  const toggleSidebarAriaKey = useShortcutAriaKey('toggleSidebar');
 
   return (
     <div className="flex h-full flex-shrink-0 flex-col gap-2 border-r border-border-light bg-surface-primary-alt px-2 py-2">
       <TooltipAnchor
         side="right"
-        description={localize(toggleLabel)}
+        description={toggleSidebarHint}
         render={
           <Button
             id={expanded ? CLOSE_SIDEBAR_ID : undefined}
@@ -137,6 +156,7 @@ function ExpandedPanel({
             variant="ghost"
             aria-label={localize(toggleLabel)}
             aria-expanded={expanded}
+            aria-keyshortcuts={toggleSidebarAriaKey}
             className="h-9 w-9 rounded-lg"
             onClick={toggleClick}
           >
@@ -144,7 +164,8 @@ function ExpandedPanel({
           </Button>
         }
       />
-      <NewChatButton />
+      <NewChatButton setActive={setActive} />
+      <div className="mx-2 border-b border-border-light" />
       <div className="flex flex-col gap-1 overflow-y-auto">
         {links.map((link) => (
           <NavIconButton
@@ -154,6 +175,7 @@ function ExpandedPanel({
             expanded={expanded ?? true}
             setActive={setActive}
             onExpand={onExpand}
+            onCollapse={onCollapse}
           />
         ))}
       </div>

@@ -1,7 +1,9 @@
 import { useCallback } from 'react';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { replaceSpecialVars } from 'librechat-data-provider';
+import type { TMessage } from 'librechat-data-provider';
 import { useChatContext, useChatFormContext, useAddedChatContext } from '~/Providers';
+import { useLatestMessage } from '~/hooks/Messages/useLatestMessage';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { mainTextareaId } from '~/common';
 import store from '~/store';
@@ -11,13 +13,18 @@ export default function useSubmitMessage() {
   const methods = useChatFormContext();
   const { conversation: addedConvo } = useAddedChatContext();
   const { ask, index, getMessages, setMessages } = useChatContext();
-  const latestMessage = useRecoilValue(store.latestMessageFamily(index));
+  const latestMessage = useLatestMessage(index);
 
   const autoSendPrompts = useRecoilValue(store.autoSendPrompts);
   const setActivePrompt = useSetRecoilState(store.activePromptByIndex(index));
 
   const submitMessage = useCallback(
-    (data?: { text: string }) => {
+    (data?: {
+      text: string;
+      overrideFiles?: TMessage['files'];
+      overrideQuotes?: string[];
+      overrideManualSkills?: string[];
+    }) => {
       if (!data) {
         return console.warn('No data provided to submitMessage');
       }
@@ -29,14 +36,22 @@ export default function useSubmitMessage() {
         setMessages([...(rootMessages || []), latestMessage]);
       }
 
-      ask(
+      const submitted = ask(
         {
           text: data.text,
         },
         {
           addedConvo: addedConvo ?? undefined,
+          // Queued during-run messages carry their own consumed attachments,
+          // quote chips, and manual skill picks (undefined = drain composer).
+          overrideFiles: data.overrideFiles,
+          overrideQuotes: data.overrideQuotes,
+          overrideManualSkills: data.overrideManualSkills,
         },
       );
+      if (submitted === false) {
+        return false;
+      }
       methods.reset();
     },
     [ask, methods, addedConvo, setMessages, getMessages, latestMessage],

@@ -1,7 +1,7 @@
 import { atom } from 'recoil';
 import { SettingsViews, LocalStorageKeys } from 'librechat-data-provider';
-import { atomWithLocalStorage } from '~/store/utils';
 import type { TOptionSettings } from '~/common';
+import { atomWithLocalStorage } from '~/store/utils';
 
 // Static atoms without localStorage
 const staticAtoms = {
@@ -26,9 +26,15 @@ const localStorageAtoms = {
     true,
   ),
   keepScreenAwake: atomWithLocalStorage('keepScreenAwake', true),
+  newChatSwitchToHistory: atomWithLocalStorage('newChatSwitchToHistory', true),
 
   // Chat settings
   enterToSend: atomWithLocalStorage('enterToSend', true),
+  /** What Enter does while a run is generating: steer (inject mid-run) or queue (send after). */
+  duringRunDefaultAction: atomWithLocalStorage<'steer' | 'queue'>(
+    'duringRunDefaultAction',
+    'steer',
+  ),
   maximizeChatSpace: atomWithLocalStorage('maximizeChatSpace', false),
   chatDirection: atomWithLocalStorage('chatDirection', 'LTR'),
   autoExpandTools: atomWithLocalStorage(LocalStorageKeys.AUTO_EXPAND_TOOLS, false),
@@ -37,7 +43,6 @@ const localStorageAtoms = {
   forkSetting: atomWithLocalStorage('forkSetting', ''),
   splitAtTarget: atomWithLocalStorage('splitAtTarget', false),
   rememberDefaultFork: atomWithLocalStorage(LocalStorageKeys.REMEMBER_FORK_OPTION, false),
-  showThinking: atomWithLocalStorage('showThinking', false),
   saveBadgesState: atomWithLocalStorage('saveBadgesState', false),
 
   // Beta features settings
@@ -50,6 +55,7 @@ const localStorageAtoms = {
   atCommand: atomWithLocalStorage('atCommand', true),
   plusCommand: atomWithLocalStorage('plusCommand', true),
   slashCommand: atomWithLocalStorage('slashCommand', true),
+  dollarCommand: atomWithLocalStorage('dollarCommand', true),
 
   // Speech settings
   conversationMode: atomWithLocalStorage('conversationMode', false),
